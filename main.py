@@ -1,15 +1,20 @@
-"""
+""""
 This is a banking program with different account functionality.
 For the management of the users I have made a class named "Userdatabase". Its data structure is
 After logging in, you'll have the possibility to deposit money to your account, transfer money from your account to
 another account or withdraw money
 """
-
+import tkinter.messagebox
 from tkinter import *
 from tkinter.ttk import *
 
 
-class Ui:
+# TODO: rethink if all attributes need to be private
+# TODO: add comments
+# TODO: fix withdraw bug
+
+
+class App(Tk):
     """
 
     """
@@ -19,8 +24,17 @@ class Ui:
 
         """
 
-        self._window = Tk()
-        self.__database = UserDatabase
+        super().__init__()
+        self.database = UserDatabase()
+        self.login_frame = LoginFrame(self)
+        self.register_frame = RegisterFrame(self)
+        self.main_frame = None
+
+        self.title = "Banking program"
+
+        self.currently_open_frame = self.login_frame
+
+        self.login_frame.pack()
 
     def start(self):
         """
@@ -28,146 +42,207 @@ class Ui:
         :return:
         """
 
-        login_ui = RegisterUi()
-        self._window.mainloop()
+        self.mainloop()
 
-    def quit(self):
+    def close(self):
         """
-        Quits the program
+        closes the program
         :return:
         """
 
-        self._window.destroy()
+        self.destroy()
 
-    def show_error_popup(self, error_text):
+    def login(self, username, password):
         """
-        Shows an error popup
-        :param error_text: str, the error text
+        A method for the login process
+        :param username: str, the username
+        :param password: str, the password
+        :return:
         """
-        # TODO: implement method
-        pass
+
+        if self.database.check_credentials(username, password):
+            self.main_frame = MainUiFrame(self.database.get_user(username), self.database, self)
+            self.login_frame.reset_fields()
+            self.login_frame.pack_forget()
+            self.main_frame.pack()
+
+            self.currently_open_frame = self.main_frame
+
+        else:
+            self.login_frame.show_error_message("Please check your credentials")
+
+    def register(self, username, password, repeat):
+        """
+        A method for the register process
+        :param username: str, the username
+        :param password: str, the password
+        :param repeat: str, the repeated password
+        :return:
+        """
+
+        # checks if the fields are not empty and the passwords match
+
+        if username != "" and password != "" and password == repeat and username not in self.database:
+            self.database.add_user(username, password)
+            tkinter.messagebox.showinfo(title="Congrats", message="You have successfully created an account")
+            self.open_login_frame()
+
+        elif password != repeat:
+            self.register_frame.show_error_message("The passwords don't match")
+
+        elif username in self.database:
+            self.register_frame.show_error_message("A user with the same username already exists. "
+                                                   "Please use another one")
+
+        else:
+            self.register_frame.show_error_message("Please fill out all the fields")
+
+    def open_register_frame(self):
+        """
+        A method to open the register frame
+        :return:
+        """
+
+        self.login_frame.reset_fields()
+
+        self.login_frame.pack_forget()
+        self.register_frame.pack()
+
+        self.currently_open_frame = self.register_frame
+
+    def open_login_frame(self):
+        """
+        A method to close the currently open frame and open the login frame
+        :return:
+        """
+
+        if self.currently_open_frame == self.register_frame:
+            self.currently_open_frame.reset_fields()
+
+        self.currently_open_frame.pack_forget()
+        self.login_frame.pack()
+
+        self.currently_open_frame = self.login_frame
 
 
-class LoginUi(Ui):
+class LoginFrame(Frame):
     """
     A class managing the login function of the
     """
 
-    def __init__(self):
+    def __init__(self, root=None):
         """
-        Constructor. Creates the login ui
+        Constructor for
+        :param root:
         """
 
-        super().__init__()
-
-        # showing the screen on which all the widgets will be placed on
-
-        self.__screen = Frame(self._window)
-        self.__screen.grid(row=0, column=0, sticky="nsew")
+        super().__init__(root)
 
         # labels
 
-        self.__header = Label(self.__screen, text="Login")
-        self.__username_label = Label(self.__screen, text="Username")
-        self.__password_label = Label(self.__screen, text="Password")
-        self.__error_label = Label(self.__screen)
-        self.__register_label = Label(self.__screen, text="Don't have an account yet?")
+        self.__header = Label(self, text="Login")
+        self.__username_label = Label(self, text="Username")
+        self.__password_label = Label(self, text="Password")
+        self.__error_label = Label(self)
+        self.__register_label = Label(self, text="Don't have an account yet?")
 
         # entries
 
-        self.__username_entry = Entry(self.__screen)
-        self.__password_entry = Entry(self.__screen, show="*")
+        self.__username = StringVar(self)
+        self.__password = StringVar(self)
+        self.__username_entry = Entry(self, textvariable=self.__username)
+        self.__password_entry = Entry(self, textvariable=self.__password, show="*")
 
         # buttons
 
-        self.__login_button = Button(self.__screen, text="Login", command=self.login)
-        self.__register_button = Button(self.__screen, text="Create an account", command=self.register)
-        self.__quit_button = Button(self.__screen, text="Quit", command=self.quit)
+        self.__login_button = Button(self, text="Login", command=lambda: root.login(self.__username.get(),
+                                                                                    self.__password.get()))
+        self.__register_button = Button(self, text="Create an account", command=lambda: root.open_register_frame())
+        self.__quit_button = Button(self, text="Quit", command=lambda: root.close())
 
         # placing the widgets
 
-        self.__header.pack()
-        self.__username_label.pack()
-        self.__username_entry.pack()
-        self.__password_label.pack()
-        self.__password_entry.pack()
+        self.__header.grid(row=0, column=0, columnspan=3)
 
-        self.__login_button.pack()
-        self.__register_label.pack()
-        self.__register_button.pack()
+        self.__username_label.grid(row=1, column=0)
+        self.__username_entry.grid(row=1, column=1)
+        self.__password_label.grid(row=2, column=0)
+        self.__password_entry.grid(row=2, column=1)
 
-        self.__quit_button.pack(side=RIGHT)
+        self.__error_label.grid(row=3, column=1)
 
-    def login(self):
+        self.__login_button.grid(row=4, column=1)
+        self.__register_label.grid(row=5, column=1)
+        self.__register_button.grid(row=6, column=1)
+
+        self.__quit_button.grid(row=7, column=2)
+
+    def show_error_message(self, text):
         """
-        A method to check the login credentials and open the main ui if the credentials are correct
-        """
-
-        username = self.__username_entry.get()
-        password = self.__password_entry.get()
-
-        if self.__database.check_user(username, password, password):
-            main_ui = MainUi(self.__database.get_user(username, username))
-
-        else:
-            self.__error_label["text"] = "Please check your credentials"
-
-    def register(self):
-        """
-        A method to switch to the register screen
+        shows an error message
+        :param text: str, the error message
         :return:
         """
-        self.__screen.grid_remove()
-        register = RegisterUi()
+
+        self.__error_label["text"] = text
+        self.reset_fields()
+
+    def reset_fields(self):
+        """
+        clears the entry fields
+        :return:
+        """
+
+        self.__username.set("")
+        self.__password.set("")
 
 
-class RegisterUi(Ui):
+class RegisterFrame(Frame):
     """
     The register ui
     """
 
-    def __init__(self):
+    def __init__(self, root=None):
         """
         Constructor
         """
 
-        super().__init__()
-
-        # initializing the frame on which the widgets are placed
-
-        self.__screen = Frame(self._window)
-        self.__screen.grid(row=0, column=0, sticky="nsew")
+        super().__init__(root)
 
         # creating a StringVar for updates to the password_security progressbar on each update on the password entry
 
-        self.password = StringVar(self.__screen)
+        self.username = StringVar(self)
+        self.password = StringVar(self)
+        self.repeat_password = StringVar(self)
         self.password.trace("w", self.strength)
 
         # labels
 
-        self.__header = Label(self.__screen, text="Register")
-        self.__username_label = Label(self.__screen, text="Username")
-        self.__password_label = Label(self.__screen, text="Password")
-        self.__repeat_password_label = Label(self.__screen, text="Repeat password")
-        self.__password_security_label = Label(self.__screen, text="Password strength: Weak")
-        self.__login_label = Label(self.__screen, text="Already got an account? Log in instead")
-        self.__error_label = Label(self.__screen)
+        self.__header = Label(self, text="Register")
+        self.__username_label = Label(self, text="Username")
+        self.__password_label = Label(self, text="Password")
+        self.__repeat_password_label = Label(self, text="Repeat password")
+        self.__password_security_label = Label(self, text="Password strength: Weak")
+        self.__login_label = Label(self, text="Already got an account? Log in instead")
+        self.__error_label = Label(self)
 
         # entry fields
 
-        self.__username_entry = Entry(self.__screen)
-        self.__password_entry = Entry(self.__screen, textvariable=self.password, show="*")
-        self.__repeat_password_entry = Entry(self.__screen, show="*")
+        self.__username_entry = Entry(self, textvariable=self.username)
+        self.__password_entry = Entry(self, textvariable=self.password, show="*")
+        self.__repeat_password_entry = Entry(self, textvariable=self.repeat_password, show="*")
 
         # buttons
 
-        self.__register_button = Button(self.__screen, text="Register", command=self.register)
-        self.__login_button = Button(self.__screen, text="Login", command=self.to_login)
-        self.__quit_button = Button(self.__screen, text="Quit", command=self.quit)
+        self.__register_button = Button(self, text="Register",
+                                        command=lambda: root.register(self.username.get(), self.password.get(),
+                                                                      self.repeat_password.get()))
+        self.__login_button = Button(self, text="Login", command=lambda: root.open_login_frame())
+        self.__quit_button = Button(self, text="Quit", command=lambda: root.close())
 
         # progressbar
 
-        self.__password_security = Progressbar(self.__screen, orient=HORIZONTAL, length=100, mode="determinate")
+        self.__password_security = Progressbar(self, orient=HORIZONTAL, length=100, mode="determinate")
 
         # placing the widgets
 
@@ -191,41 +266,25 @@ class RegisterUi(Ui):
 
         self.__quit_button.grid(row=10, column=2)
 
-    def test(self):
+    def show_error_message(self, text):
         """
-        please fucking work you piece of shit code
+        shows an error message
+        :param text: str, the error message
         :return:
         """
 
-        print(self.password.get())
+        self.__error_label["text"] = text
+        self.reset_fields()
 
-    def register(self):
+    def reset_fields(self):
         """
-        Gets the entries from the user, checks if they are not empty, the two passwords match and creates an account
-        """
-
-        username = self.__username_entry.get()
-        password = self.password
-        repeat = self.__repeat_password_entry.get()
-
-        # checks if the fields are not empty and the passwords match
-
-        if username != "" and password != "" and (password == repeat):
-            self.__database.add_user(username, password, password)
-
-        elif password != repeat:
-            self.__error_label["text"] = "Passwords don't match"
-
-        else:
-            self.__error_label["text"] = "Please fill out all the fields"
-
-    def to_login(self):
-        """
-        Changes the current screen to the login screen
+        clears the entry fields
+        :return:
         """
 
-        self.__screen.grid_remove()
-        login_ui = LoginUi()
+        self.username.set("")
+        self.password.set("")
+        self.repeat_password.set("")
 
     def strength(self, *args):
         """
@@ -254,22 +313,335 @@ class RegisterUi(Ui):
             self.__password_security_label["text"] = "Password strength: Strong"
 
 
-class MainUi(Ui):
+class MainUiFrame(Frame):
     """
     The main ui
     """
 
-    def __init__(self, current_user):
+    def __init__(self, current_user, database, root=None):
         """
         Constructor for the main ui
         :param current_user: Account, the user that's currently logged in
+        :param database:
+        :param root:
         """
 
-        super().__init__()
+        super().__init__(root)
 
-        self.__user = current_user
+        self.user = current_user
+        self.database = database
 
-        # TODO: create UI
+        # balance StringVar
+
+        self.balance = StringVar(root)
+        self.balance.set(self.user.balance)
+
+        # label
+
+        self.__header = Label(self, text="Main page")
+        self.__header.grid(row=0, column=0, columnspan=2)
+
+        # notebook
+
+        self.__navigation_notebook = Notebook(self)
+        self.__navigation_notebook.grid(row=1, column=0, columnspan=2)
+
+        self.bank_action_frame = BankActionFrame(self.user, self.database, self.__navigation_notebook)
+        self.log_frame = LogFrame(self.user, self.__navigation_notebook)
+
+        self.__navigation_notebook.add(self.bank_action_frame, text="Account action")
+        self.__navigation_notebook.add(self.log_frame, text="Bank log")
+        self.__admin_frame = AdminFrame(self.database, self.__navigation_notebook)
+
+        if self.user.is_admin():
+            self.__navigation_notebook.add(self.__admin_frame, text="Admin")
+
+        self.__navigation_notebook.bind('<<NotebookTabChanged>>', self.refresh_frames)
+
+        # buttons
+
+        self.__log_off_button = Button(self, text="Log off", command=lambda: root.open_login_frame())
+        self.__quit_button = Button(self, text="Quit", command=lambda: root.quit())
+
+        self.__log_off_button.grid(row=2, column=0)
+        self.__quit_button.grid(row=2, column=1)
+
+    def refresh_frames(self, *args):
+        """
+
+        :return:
+        """
+
+        self.log_frame.update_log()
+        self.__admin_frame.update_user_balances()
+
+
+class BankActionFrame(Frame):
+    """
+
+    """
+
+    def __init__(self, current_user, database, root=None):
+        """
+
+        :param current_user:
+        :param root:
+        """
+
+        super().__init__(root)
+        self.user = current_user
+        self.database = database
+
+        # StringVars
+
+        self.__balance = StringVar(self)
+        self.__receiver = StringVar(self)
+        self.__deposit = StringVar(self)
+        self.__withdraw = StringVar(self)
+        self.__transfer = StringVar(self)
+
+        self.__balance.set(f"{self.user.balance:.2f} €")
+        self.__deposit.set("0.00")
+        self.__withdraw.set("0.00")
+        self.__transfer.set("0.00")
+
+        # labels
+
+        self.__header = Label(self, text="Account action")
+        self.__current_balance_label = Label(self, textvariable=self.__balance)
+        self.__deposit_label = Label(self, text="Deposit")
+        self.__withdraw_label = Label(self, text="Withdraw")
+        self.__transfer_label = Label(self, text="Transfer")
+        self.__receiver_label = Label(self, text="Receiver")
+        self.action_label = Label(self)
+
+        # buttons
+
+        self.__deposit_button = Button(self, text="Deposit", command=self.deposit)
+        self.__withdraw_button = Button(self, text="Withdraw", command=self.withdraw)
+        self.__transfer_button = Button(self, text="Transfer", command=self.transfer)
+
+        # entry
+
+        self.__receiver_entry = Entry(self, textvariable=self.__receiver)
+
+        # spinboxes
+
+        self.__deposit_spinbox = Spinbox(self, from_=0.00, to=1000.00,
+                                         increment=0.01, textvariable=self.__deposit)
+        self.__withdraw_spinbox = Spinbox(self, from_=0.00, to=1000.00,
+                                          increment=0.01, textvariable=self.__withdraw)
+        self.__transfer_spinbox = Spinbox(self, from_=0.00, to=1000.00,
+                                          increment=0.01, textvariable=self.__transfer)
+
+        # placing the widgets
+
+        self.__header.grid(row=0, column=0, columnspan=2)
+
+        self.__current_balance_label.grid(row=1, column=0, columnspan=2)
+
+        self.__deposit_label.grid(row=2, column=0, columnspan=2)
+        self.__deposit_spinbox.grid(row=3, column=0)
+        self.__deposit_button.grid(row=3, column=1)
+
+        self.__withdraw_label.grid(row=4, column=0, columnspan=2)
+        self.__withdraw_spinbox.grid(row=5, column=0)
+        self.__withdraw_button.grid(row=5, column=1)
+
+        self.__transfer_label.grid(row=6, column=0, columnspan=2)
+        self.__receiver_label.grid(row=7, column=0)
+        self.__receiver_entry.grid(row=7, column=1)
+        self.__transfer_spinbox.grid(row=8, column=0)
+        self.__transfer_button.grid(row=8, column=1)
+
+        self.action_label.grid(row=9, column=0, columnspan=2)
+
+    def deposit(self):
+        """
+
+        :return:
+        """
+
+        try:
+            sum = float(self.__deposit_spinbox.get())
+
+        except ValueError:
+            self.action_label["text"] = "Error: You must input a number"
+            self.reset_fields()
+            return
+
+        if self.user.deposit(sum):
+            self.action_label["text"] = f"Deposited {sum:.2f} €"
+            self.__balance.set(f"{self.user.balance:.2f} €")
+
+        else:
+            self.action_label["text"] = "Error: You can't deposit a negative amount of money"
+
+        self.reset_fields()
+
+    def withdraw(self):
+        """
+
+        :return:
+        """
+
+        try:
+            sum = float(self.__deposit_spinbox.get())
+
+        except ValueError:
+            self.action_label["text"] = "Error: You must input a number"
+            self.reset_fields()
+            return
+
+        withdrawal = self.user.withdraw(sum)
+
+        if withdrawal:
+            self.action_label["text"] = f"Withdrew {withdrawal:.2f} €"
+            self.__balance.set(f"{self.user.balance:.2f} €")
+
+        else:
+            self.action_label["text"] = "Error: You cannot withdraw a negative amount of money"
+
+        self.reset_fields()
+
+    def transfer(self):
+        """
+
+        :return:
+        """
+
+        try:
+            sum = float(self.__transfer_spinbox.get())
+
+        except ValueError:
+            self.action_label["text"] = "Error: You must input a number"
+            self.reset_fields()
+            return
+
+        if self.__receiver.get() not in self.database:
+            self.action_label["text"] = "Error: Other user cannot be found"
+            self.reset_fields()
+            return
+
+        target = self.database.get_user(self.__receiver.get())
+
+        actual_sum = self.user.transfer(target, sum)
+        if actual_sum:
+            self.action_label["text"] = f"Transferred {actual_sum:.2f} € to {target}"
+            self.__balance.set(f"{self.user.balance:.2f} €")
+
+        else:
+            self.action_label["text"] = "Error: You cannot transfer a negative amount of money"
+
+        self.reset_fields()
+
+    def reset_fields(self):
+        """
+
+        :return:
+        """
+        self.__deposit.set("0.00")
+        self.__withdraw.set("0.00")
+        self.__transfer.set("0.00")
+        self.__receiver.set("")
+
+
+class LogFrame(Frame):
+    """
+
+    """
+
+    def __init__(self, current_user, root=None):
+        """
+
+        :param current_user:
+        :param root:
+        """
+
+        super().__init__(root)
+        self.current_user = current_user
+
+        # Labels
+
+        self.__header = Label(self, text="Account history")
+
+        self.current_entries = []
+
+        for entry in self.current_user.log:
+            log_label = Label(self, text=entry)
+            log_label.pack()
+            self.current_entries.append(entry)
+
+        self.__header.pack()
+
+    def update_log(self):
+        """
+
+        :return:
+        """
+
+        log = self.current_user.log
+
+        # delete all the log entries that already exist
+
+        try:
+            while log[0] == self.current_entries[0]:
+                del log[0]
+
+        except IndexError:
+            pass
+
+        for entry in log:
+            log_label = Label(self, text=entry)
+            log_label.pack()
+            self.current_entries.append(entry)
+
+
+class AdminFrame(Frame):
+    """
+
+    """
+
+    def __init__(self, database, root=None):
+        """
+
+        :param database:
+        :param root:
+        """
+
+        super().__init__(root)
+        self.database = database
+
+        self.users = self.database.get_all_users()
+        self.balance_stringvars = {}
+
+        row = 0
+        for user in self.users:
+            balance = StringVar()
+            balance.set(f"{user.balance:.2f} €")
+
+            # widgets for each user
+
+            user_frame = Frame(self)
+            username_label = Label(user_frame, text=user)
+            balance_label = Label(user_frame, textvariable=balance)
+
+            username_label.grid(row=row, column=0)
+            balance_label.grid(row=row, column=1)
+            user_frame.grid(row=row, column=0)
+
+            self.balance_stringvars[user] = balance
+
+            row += 1
+
+    def update_user_balances(self):
+        """
+
+        :return:
+        """
+
+        for user in self.users:
+            self.balance_stringvars[user].set(f"{user.balance:.2f} €")
 
 
 class Account:
@@ -286,8 +658,8 @@ class Account:
 
         self.__username = username
         self.__admin = admin
-        self.__balance = 0.0
-        self.__log = []
+        self.balance = 0.0
+        self.log = []
 
     def __str__(self):
         """
@@ -297,19 +669,22 @@ class Account:
 
         return self.__username
 
-    def add_money(self, money):
+    def deposit(self, money):
         """
         This method adds money to the account's balance
         :param money: float, the amount of money to be added
-        :return: False if the user tries to deposit a negative amount of money
+        :return: bool, has the action been successful
         """
 
         if money < 0:
             return False
 
-        self.__balance += money
+        self.balance += money
+        self.log.append(f"+{money:.2f} €:   Deposit")
 
-    def remove_money(self, money):
+        return True
+
+    def withdraw(self, money):
         """
         This method removes money from the account's balance
         :param money: float, the amount of money to be removed
@@ -319,11 +694,15 @@ class Account:
         if money < 0:
             return False
 
-        elif self.__balance - money < 0:
-            return False
+        elif self.balance - money < 0:
+            money = self.balance
+            self.balance = 0
 
         else:
-            self.__balance -= money
+            self.balance -= money
+
+        self.log.append(f"-{money:.2f} €:   Withdrawal")
+        return money
 
     def transfer(self, other_account, money):
         """
@@ -333,45 +712,23 @@ class Account:
         :return: str, the error type if something goes wrong
         """
 
-        if money <= 0:
-            return "negative"
+        if money < 0:
+            return False
 
-        elif self.__balance - money < 0:
-            return "no balance"
+        elif self.balance - money < 0:
+            money = self.balance
+
+            self.balance = 0
+            other_account.balance += money
 
         else:
-            other_account.add_money(money)
-            self.remove_money(money)
+            self.balance -= money
+            other_account.balance += money
 
-    def add_to_log(self, action):
-        """
-        Adds something to the log. Is used in in the MainUi class after each action
-        :param action: str, the action that should be added to the log.
-        The format needs to be: change on the balance;action description
-        """
+        self.log.append(f"-{money:.2f} €:   Transfer to {other_account}")
+        other_account.log.append(f"+{money:.2f} €:   Transfer from {self}")
 
-        change, description = action.split(";")
-        log_entry = f"{change}: {description}"
-
-        self.__log.append(log_entry)
-
-    def get_log(self):
-        """
-        Returns the log. Is used in the MainUi class to display the users log
-        :return: str, the log as a string with an empty row between each entry
-        """
-
-        log = "\n\n".join(self.__log)
-
-        return log
-
-    def get_balance(self):
-        """
-        returns the accounts balance
-        :return: float, the balance
-        """
-
-        return self.__balance
+        return money
 
     def is_admin(self):
         """
@@ -392,7 +749,20 @@ class UserDatabase:
         Constructor. Database is a dict
         """
 
-        self.__database = {}
+        self.__database = {"admin": {"user": Account("admin", True), "password": "admin"}}
+        self.add_user("test1", "test")
+        self.add_user("test2", "test")
+        self.add_user("test3", "test")
+        self.add_user("test4", "test")
+
+    def __contains__(self, item):
+        """
+
+        :param item:
+        :return:
+        """
+
+        return item in self.__database
 
     def add_user(self, username, password):
         """
@@ -401,10 +771,10 @@ class UserDatabase:
         :param password: str, the password
         """
 
-        user = Account(username, password)
+        user = Account(username)
         self.__database[username] = {"user": user, "password": password}
 
-    def check_user(self, username, password):
+    def check_credentials(self, username, password):
         """
         checks if the username and password are correct
         :param username: str, the username
@@ -432,11 +802,24 @@ class UserDatabase:
         else:
             return False
 
+    def get_all_users(self):
+        """
+
+        :return:
+        """
+
+        key_list = self.__database.keys()
+        users = []
+
+        for key in key_list:
+            users.append(self.__database[key]["user"])
+
+        return users
+
 
 def main():
-
-    ui = Ui()
-    ui.start()
+    app = App()
+    app.start()
 
 
 if __name__ == "__main__":
